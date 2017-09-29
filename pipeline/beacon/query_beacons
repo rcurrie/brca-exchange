@@ -20,16 +20,21 @@ from ga4gh.client import client
 URL_MAX = 1000  # The maximum allowed length of HTTP request URLs
 BEACON_RESPONSE_URL = "https://beacon-network.org/api/responses" # URL for variant requests in the beacon network
 BEACON_BEACONS_URL = "https://beacon-network.org/api/beacons" # URL for beacon list requests
-BRCA_GA4GH_URL = "http://brcaexchange.org/backend/data/ga4gh/v0.6.0a7/" # URL for BRCA Exchange GA4GH instance
+BRCA_GA4GH_URL = "http://brcaexchange.cloudapp.net/backend/data/ga4gh/v0.6.0a7/" # URL for BRCA Exchange GA4GH instance
 
 # BRCA 1 and 2 locations
 BRCA1_CHR = "chr17" 
-BRCA1_START = 41160094
-BRCA1_END = 41322387
+# BRCA1_START = 41160094
+# BRCA1_END = 41322387
+BRCA1_START = 41223107
+BRCA1_END = 41223109
+
 
 BRCA2_CHR = "chr13"
-BRCA2_START = 32889080
-BRCA2_END = 32974403
+# BRCA2_START = 32889080
+# BRCA2_END = 32974403
+BRCA2_START = 32929255
+BRCA2_END = 32929257
 
 GENE_BUFFER = 5 # The number of extra bases surrounding a gene to request from GA4GH
 
@@ -75,7 +80,12 @@ def build_variant_dictionary(variant, beacon_responses):
                 VARIANT_D[variant]['beaconNames'].append(response['beacon']['name'])
                 VARIANT_D[variant]['beaconIDs'].append(response['beacon']['id'])
                 VARIANT_D[variant]['numBeacons'] += 1
+            elif response['response'] == None:
+                VARIANT_D[variant]['notApplicable'] += 1
+            elif response['response'] == False:
+                VARIANT_D[variant]['notFound'] += 1
         else:
+            VARIANT_D[variant]['notApplicable'] += 1
             logging.debug("No response from {}: {}".format(response['beacon']["id"], str(response)))
 
 
@@ -147,6 +157,9 @@ def parse_arguments(args):
     parser.add_argument('--test', action='store_true',
                         help="Run the script in test mode, which only makes requests"
                              " for variants in a 100BP range for each gene.")
+    # parser.add_argument('-d', help="Database to update")
+    # parser.add_argument('-u', help="Username for database to update")
+    # parser.add_argument('-password', help="Password for database to update")
 
     options = parser.parse_args()
 
@@ -155,9 +168,12 @@ def parse_arguments(args):
     
     if options.test:
         global BRCA1_END
-        BRCA1_END = BRCA1_START + 100
+        # BRCA1_END = BRCA1_START + 100
+        # BRCA1_END = BRCA1_START + 1
         global BRCA2_END
-        BRCA2_END = BRCA2_START + 100
+        # BRCA2_START = 32932225
+        # BRCA2_END = 32932227
+        # BRCA2_END = BRCA2_START + 100
         options.output_file = "brca_beacons_test.json"
 
     return options 
@@ -214,7 +230,7 @@ def main(args):
                 continue
 
             global VARIANT_D
-            VARIANT_D[variant.id] = {"url": website_url, "beaconNames": [], "beaconIDs": [], "numBeacons": 0}
+            VARIANT_D[variant.id] = {"url": website_url, "beaconNames": [], "beaconIDs": [], "numBeacons": 0, "notApplicable": 0, "notFound": 0}
 
             if options.parallel:
                 thread = QueryBeacons(beacons, variant.id, request, options.tries)
