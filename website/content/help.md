@@ -2,7 +2,7 @@
 
 ---
 
-<a href="https://brcaexchange.gitbooks.io/helppages/content/" target="_blank" rel="noopener">Comprehensive documentation</a>
+<a href="https://amycoffin.gitbooks.io/brcaexchange/content/" target="_blank" rel="noopener">Comprehensive documentation</a>
 
 ---
 
