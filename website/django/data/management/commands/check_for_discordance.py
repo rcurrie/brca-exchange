@@ -146,27 +146,30 @@ class Command(BaseCommand):
             clinvar_discordance = None
             clinvar_actionable = None
             first_clinvar_significance = None
-            clinvar_discordance = None
             lovd_consistency = None
-            first_lovd_significance = None
             lovd_discordance = None
+            first_lovd_significance = None
             for field in meta['variant_fields']:
                 output_row[field] = getattr(variant, field)
             for report in reports:
                 if report.Source == "ClinVar":
                     significance = report.Clinical_Significance_ClinVar
                     clinvar_actionable = self._update_clinvar_actionable(significance, clinvar_actionable)
+                    first_clinvar_significance = None
                     clinvar_discordance, first_clinvar_significance = self._update_clinvar_discordance(clinvar_discordance, significance, first_clinvar_significance)
                     output_row = self._append_value(output_row, 'Submitter_ClinVar', report.Submitter_ClinVar)
                     output_row = self._append_value(output_row, 'Clinical_Significance_ClinVar', significance)
                 elif report.Source == "LOVD":
                     significance = report.Variant_effect_LOVD
                     lovd_consistency, first_lovd_significance = self._update_lovd_consistency(lovd_consistency, significance, first_lovd_significance)
+                    first_lovd_significance = None
                     lovd_discordance, first_lovd_significance = self._update_lovd_discordance(lovd_discordance, significance, first_lovd_significance)
                     output_row = self._append_value(output_row, 'Submitters_LOVD', report.Submitters_LOVD)
                     output_row = self._append_value(output_row, 'Variant_effect_LOVD', significance)
             output_row['Consistency_LOVD'] = lovd_consistency
-            output_row['Consistency_ClinVar'] = clinvar_discordance
+            output_row['Discordance_LOVD'] = lovd_discordance
+            output_row['Actionable_ClinVar'] = clinvar_discordance
+            output_row['Discordance_ClinVar'] = clinvar_discordance
             pdb.set_trace()
         else:
             return False
@@ -186,9 +189,6 @@ class Command(BaseCommand):
                        'Allele_frequency_1000_Genomes')
         }
 
-        # :param meta: (dict) keys should be 'file' (string: absolute path), 'class' the Python class
-        # object, 'fields' a list or tuple of field model field names (strings)
-
         f = open(meta['file'], 'w+')
         writer = csv.writer(f, encoding='utf-8')
         writer.writerow( meta['fields_of_interest'] )
@@ -201,31 +201,3 @@ class Command(BaseCommand):
         f.close()
         print 'Data written to %s' % meta['file']
 
-
-        # for Obj in [Variant, Report]:
-        #     objs = Obj.objects.all()
-        #     for obj in objs:
-
-
-
-        #         if obj.Minor_allele_frequency_ESP_percent and obj.Minor_allele_frequency_ESP_percent != EMPTY:
-        #             eaAlleleFrequency = EMPTY
-        #             aaAlleleFrequency = EMPTY
-        #             alleleFrequency = EMPTY
-        #             maf = obj.Minor_allele_frequency_ESP_percent.split(',')
-
-        #             if len(maf) > 2:
-        #                 alleleFrequency = "%s" % (float(maf[2]) / 100)
-        #             if len(maf) > 1:
-        #                 aaAlleleFrequency = "%s" % (float(maf[1]) / 100)
-        #             if len(maf) > 0:
-        #                 eaAlleleFrequency = "%s" % (float(maf[0]) / 100)
-
-        #             obj.EA_Allele_Frequency_ESP = eaAlleleFrequency
-        #             obj.AA_Allele_Frequency_ESP = aaAlleleFrequency
-        #             obj.Allele_Frequency_ESP = alleleFrequency
-        #             obj.save()
-
-        # self.update_autocomplete_words()
-
-        print "Done!"
