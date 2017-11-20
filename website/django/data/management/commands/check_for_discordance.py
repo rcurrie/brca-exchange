@@ -52,7 +52,7 @@ class Command(BaseCommand):
     def _update_clinvar_discordance(self, discordance, significance, first_clinvar_significance):
         if discordance is True:
             return True, first_clinvar_significance
-        elif discordance is None:
+        elif first_clinvar_significance is None:
             discordance = False
             first_clinvar_significance = significance
         elif "pathogenic" in first_clinvar_significance:
@@ -67,7 +67,7 @@ class Command(BaseCommand):
         return discordance, first_clinvar_significance
 
 
-    def _update_clinvar_actionable(self, actionable, significance):
+    def _update_clinvar_actionable(self, significance, actionable):
         if actionable is False:
             return False
         if "pathogenic" in significance:
@@ -97,11 +97,11 @@ class Command(BaseCommand):
             if significance in consistency_list_negative:
                 consistency = False
         else:
-            if significance in consistency_list_positive
+            if significance in consistency_list_positive:
                 consistency = False
         return consistency, first_lovd_significance
 
-    def _update_lovd_discordance(self, discordance, significance, first_lovd_discordance):
+    def _update_lovd_discordance(self, discordance, significance, first_lovd_significance):
         discordance_list_positive = ['pathogenic', 'likely pathogenic', '+', '+?']
         discordance_list_negative = ['benign', 'likely benign', '-', '-?']
 
@@ -109,7 +109,7 @@ class Command(BaseCommand):
         
         if discordance is True:
             return True, first_lovd_significance
-        elif discordance is None:
+        elif first_lovd_significance is None:
             if significance in discordance_list_positive or significance in discordance_list_negative:
                 discordance = False
                 first_lovd_significance = significance
@@ -120,7 +120,7 @@ class Command(BaseCommand):
             if significance in discordance_list_negative:
                 discordance = True
         elif first_lovd_significance in discordance_list_negative:
-            if significance in discordance_list_positive
+            if significance in discordance_list_positive:
                 discordance = True
         return discordance, first_lovd_significance
 
@@ -171,9 +171,75 @@ class Command(BaseCommand):
                     output_row = self._append_value(output_row, 'Variant_effect_LOVD', significance)
             output_row['Consistency_LOVD'] = lovd_consistency
             output_row['Discordance_LOVD'] = lovd_discordance
-            output_row['Actionable_ClinVar'] = clinvar_discordance
+            output_row['Actionable_ClinVar'] = clinvar_actionable
             output_row['Discordance_ClinVar'] = clinvar_discordance
-            pdb.set_trace()
+
+            consistency_list_positive = ['pathogenic', 'likely pathogenic', '+', '+?']
+            consistency_list_negative = ['benign', 'likely benign', 'unclassified', 'uncertain', '-', '-?', '?', '.']
+
+            if lovd_consistency is False:
+                output_row["Consistency_LOVD_And_ClinVar"] = False
+            else:
+                clinvar_positive = None
+                clinvar_negative = None
+                lovd_positive = None
+                lovd_negative = None
+                for clinvar_sig in output_row["Clinical_Significance_ClinVar"].split(','):
+                    if clinvar_sig in consistency_list_positive:
+                        clinvar_positive = True
+                    elif clinvar_sig in consistency_list_negative:
+                        clinvar_negative = True
+                for lovd_sig in output_row["Variant_effect_LOVD"].split(','):
+                    if lovd_sig in consistency_list_positive:
+                        lovd_positive = True
+                    elif lovd_sig in consistency_list_negative:
+                        lovd_negative = True
+                if clinvar_positive is True and clinvar_negative is True:
+                    output_row["Consistency_LOVD_And_ClinVar"] = False
+                elif clinvar_positive is True and lovd_negative is True:
+                    output_row["Consistency_LOVD_And_ClinVar"] = False
+                elif lovd_positive is True and clinvar_negative is True:
+                    output_row["Consistency_LOVD_And_ClinVar"] = False
+                elif lovd_positive is True and lovd_negative is True:
+                    output_row["Consistency_LOVD_And_ClinVar"] = False
+                else:
+                    output_row["Consistency_LOVD_And_ClinVar"] = True
+
+            discordance_list_positive = ['pathogenic', 'likely pathogenic', '+', '+?']
+            discordance_list_negative = ['benign', 'likely benign', '-', '-?']
+
+            if lovd_discordance is True:
+                output_row["Discordance_LOVD_And_ClinVar"] = True
+            elif clinvar_discordance is True:
+                output_row["Discordance_LOVD_And_ClinVar"] = True
+            else:
+                clinvar_positive = None
+                clinvar_negative = None
+                lovd_positive = None
+                lovd_negative = None
+                for clinvar_sig in output_row["Clinical_Significance_ClinVar"].split(','):
+                    if clinvar_sig in discordance_list_positive:
+                        clinvar_positive = True
+                    elif clinvar_sig in discordance_list_negative:
+                        clinvar_negative = True
+                for lovd_sig in output_row["Variant_effect_LOVD"].split(','):
+                    if lovd_sig in discordance_list_positive:
+                        lovd_positive = True
+                    elif lovd_sig in discordance_list_negative:
+                        lovd_negative = True
+                if clinvar_positive is True and clinvar_negative is True:
+                    output_row["Discordance_LOVD_And_ClinVar"] = True
+                elif clinvar_positive is True and lovd_negative is True:
+                    output_row["Discordance_LOVD_And_ClinVar"] = True
+                elif lovd_positive is True and clinvar_negative is True:
+                    output_row["Discordance_LOVD_And_ClinVar"] = True
+                elif lovd_positive is True and lovd_negative is True:
+                    output_row["Discordance_LOVD_And_ClinVar"] = True
+                else:
+                    output_row["Discordance_LOVD_And_ClinVar"] = False
+
+            print output_row
+            return output_row
         else:
             return False
 
@@ -185,7 +251,7 @@ class Command(BaseCommand):
             'variant_fields': ('Genomic_Coordinate_hg38', 'HGVS_cDNA',
                        'Allele_frequency_ExAC', 'Allele_frequency_1000_Genomes'),
             'fields_of_interest': ('Genomic_Coordinate_hg38', 'HGVS_cDNA', 'Submitter_ClinVar',
-                       'Clinical_Significance_ClinVar', 'Consistency_ClinVar',
+                       'Clinical_Significance_ClinVar', 'Actionable_ClinVar',
                        'Discordance_ClinVar', 'Submitters_LOVD', 'Variant_effect_LOVD',
                        'Consistency_LOVD', 'Discordance_LOVD', 'Consistency_LOVD_And_ClinVar',
                        'Discordance_LOVD_And_ClinVar', 'Allele_frequency_ExAC',
