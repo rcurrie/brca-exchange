@@ -50,17 +50,20 @@ class Command(BaseCommand):
 
 
     def _update_clinvar_discordance(self, discordance, significance, first_clinvar_significance):
-        if discordance is False:
-            return False, first_clinvar_significance
+        if discordance is True:
+            return True, first_clinvar_significance
         elif discordance is None:
-            discordance = True
+            discordance = False
             first_clinvar_significance = significance
-        elif "pathogenic" in first_clinvar_significance.lower():
-            if "pathogenic" not in significance.lower():
-                discordance = False
+        elif "pathogenic" in first_clinvar_significance:
+            if "benign" in significance:
+                discordance = True
+        elif "benign" in first_clinvar_significance:
+            if "pathogenic" in significance:
+                discordance = True
         else:
-            if "pathogenic" in significance.lower():
-                discordance = False
+            # if neither pathogenic or benign (e.g. unknown), update first_significance
+            first_clinvar_significance = significance
         return discordance, first_clinvar_significance
 
 
@@ -104,8 +107,8 @@ class Command(BaseCommand):
 
         significance = significance.split('/')[1].lower()
         
-        if discordance is False:
-            return False, first_lovd_significance
+        if discordance is True:
+            return True, first_lovd_significance
         elif discordance is None:
             if significance in discordance_list_positive or significance in discordance_list_negative:
                 discordance = False
@@ -153,7 +156,7 @@ class Command(BaseCommand):
                 output_row[field] = getattr(variant, field)
             for report in reports:
                 if report.Source == "ClinVar":
-                    significance = report.Clinical_Significance_ClinVar
+                    significance = report.Clinical_Significance_ClinVar.lower()
                     clinvar_actionable = self._update_clinvar_actionable(significance, clinvar_actionable)
                     first_clinvar_significance = None
                     clinvar_discordance, first_clinvar_significance = self._update_clinvar_discordance(clinvar_discordance, significance, first_clinvar_significance)
