@@ -9,7 +9,6 @@ from django.db import connection
 from data.models import CurrentVariant, Report, Variant
 from django.db import transaction
 import unicodecsv as csv
-import pdb
 
 
 EMPTY = '-'
@@ -183,7 +182,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         meta = {
-            'file': '/tmp/discordance.csv',
+            'file': '/tmp/discordance.tsv',
             'class': CurrentVariant,
             'variant_fields': ['Genomic_Coordinate_hg38', 'HGVS_cDNA',
                        'Allele_frequency_ExAC', 'Allele_frequency_1000_Genomes'],
@@ -196,13 +195,15 @@ class Command(BaseCommand):
         }
 
         f = open(meta['file'], 'w+')
-        writer = csv.writer(f, encoding='utf-8')
+        writer = csv.writer(f, encoding='utf-8', delimiter='\t')
         writer.writerow( meta['fields_of_interest'] )
         for obj in meta['class'].objects.all():
             obj_data = self._collect_data_for_variant(obj, meta)
             if not obj_data:
                 continue
             else:
+                print obj_data
+                print '\n'
                 row = []
                 for field in meta['fields_of_interest']:
                     row.append(obj_data[field])
