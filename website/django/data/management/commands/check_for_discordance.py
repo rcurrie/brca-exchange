@@ -183,7 +183,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         meta = {
             'file': '/tmp/discordance.tsv',
-            'class': CurrentVariant,
             'variant_fields': ['Genomic_Coordinate_hg38', 'HGVS_cDNA',
                        'Allele_frequency_ExAC', 'Allele_frequency_1000_Genomes'],
             'fields_of_interest': ['Genomic_Coordinate_hg38', 'HGVS_cDNA', 'Submitter_ClinVar',
@@ -197,7 +196,7 @@ class Command(BaseCommand):
         f = open(meta['file'], 'w+')
         writer = csv.writer(f, encoding='utf-8', delimiter='\t')
         writer.writerow( meta['fields_of_interest'] )
-        for obj in meta['class'].objects.all():
+        for obj in CurrentVariant.objects.all().exclude(Change_Type__name='deleted'):
             obj_data = self._collect_data_for_variant(obj, meta)
             if not obj_data:
                 continue
