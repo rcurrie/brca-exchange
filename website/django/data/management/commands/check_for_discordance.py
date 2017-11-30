@@ -9,6 +9,7 @@ from django.db import connection
 from data.models import CurrentVariant, Report, Variant
 from django.db import transaction
 import unicodecsv as csv
+import pdb
 
 
 EMPTY = '-'
@@ -33,15 +34,16 @@ class Command(BaseCommand):
 
 
     def _determine_consistency(self, output_row):
-        consistency_list_positive = ['pathogenic', 'likely pathogenic', '+', '+?']
-        consistency_list_negative = ['benign', 'likely benign', 'unclassified', 'uncertain', '-', '-?', '?', '.']
-        return self._determine_consistency_or_concordance(consistency_list_positive, consistency_list_negative, output_row, 'consistency')
+        consistency_list_positive = ['pathogenic', 'likely_pathogenic', 'probable-pathogenic', '+', '+?']
+        consistency_list_negative = ['benign', 'likely_benign', 'unclassified', 'uncertain_significance', 'probably_not_pathogenic',
+                                     'no_known_pathogenicity', 'not_provided', 'variant_of_unknown_significance', '-', '-?', '?', '.']
+        return self._determine_consistency_or_concordance(consistency_list_positive, consistency_list_negative, output_row)
 
 
     def _determine_discordance(self, output_row):
-        discordance_list_positive = ['pathogenic', 'likely pathogenic', '+', '+?']
-        discordance_list_negative = ['benign', 'likely benign', '-', '-?']
-        clinvar_concordance, lovd_concordance, clinvar_and_lovd_concordance = self._determine_consistency_or_concordance(discordance_list_positive, discordance_list_negative, output_row, 'concordance')
+        discordance_list_positive = ['pathogenic', 'likely_pathogenic', 'probable-pathogenic', '+', '+?']
+        discordance_list_negative = ['benign', 'likely_benign', 'probably_not_pathogenic', '-', '-?']
+        clinvar_concordance, lovd_concordance, clinvar_and_lovd_concordance = self._determine_consistency_or_concordance(discordance_list_positive, discordance_list_negative, output_row)
         # return discordance, not concordance (opposite)
         clinvar_discordance = False if clinvar_concordance is None else not clinvar_concordance
         lovd_discordance = False if lovd_concordance is None else not lovd_concordance
@@ -49,17 +51,38 @@ class Command(BaseCommand):
         return clinvar_discordance, lovd_discordance, clinvar_and_lovd_discordance
 
 
-    def _determine_consistency_or_concordance(self, list_positive, list_negative, output_row, type):
+    def _determine_clinvar_or_lovd_consistency_or_concordance(self, positive, negative):
+        if positive is True and negative is True:
+            return False
+        elif positive is True and negative is False:
+            return True
+        elif negative is True and positive is False:
+            return True
+        else:
+            return None
+
+
+    def _determine_clinvar_and_lovd_consistency_or_concordance(self, clinvar_positive, clinvar_negative, lovd_positive, lovd_negative):
+        if clinvar_positive is True and lovd_positive is True and clinvar_negative is False and lovd_negative is False:
+            return True
+        elif clinvar_negative is True and lovd_negative is True and clinvar_positive is False and lovd_negative is False:
+            return True
+        else:
+            if [clinvar_positive, clinvar_negative, lovd_positive, lovd_negative].count(True) <= 1:
+                return True
+            else:
+                return False
+
+
+    def _determine_consistency_or_concordance(self, list_positive, list_negative, output_row):
         clinvar_positive = False
         lovd_positive = False
         clinvar_negative = False
         lovd_negative = False
-        clinvar_consistency_or_concordance = None
-        lovd_consistency_or_concordance = None
-        clinvar_and_lovd_consistency_or_concordance = None
 
         if not is_empty(output_row["Clinical_Significance_ClinVar"]):
             for clinvar_sig in output_row["Clinical_Significance_ClinVar"].split(','):
+                clinvar_sig = clinvar_sig.strip().lower()
                 if clinvar_sig in list_positive:
                     clinvar_positive = True
                 elif clinvar_sig in list_negative:
@@ -67,66 +90,16 @@ class Command(BaseCommand):
         
         if not is_empty(output_row["Variant_effect_LOVD"]):
             for lovd_sig in output_row["Variant_effect_LOVD"].split(','):
+                lovd_sig = lovd_sig.strip().lower()
                 lovd_sig = lovd_sig.split('/')[1]
                 if lovd_sig in list_positive:
                     lovd_positive = True
                 elif lovd_sig in list_negative:
                     lovd_negative = True
 
-
-        # Determine clinvar consistency/concordance
-
-        if clinvar_positive is True and clinvar_negative is True:
-            clinvar_consistency_or_concordance = False
-        elif type == "concordance":
-            if clinvar_positive is True and clinvar_negative is False:
-                clinvar_consistency_or_concordance = True
-            elif clinvar_negative is True and clinvar_positive is False:
-                clinvar_consistency_or_concordance = True
-        elif type == "consistency":
-            # clinvar consistency only cares if all reports are positive (consistently actionable)
-            if clinvar_positive is True and clinvar_negative is False:
-                clinvar_consistency_or_concordance = True
-            else:
-                clinvar_consistency_or_concordance = False
-        else:
-            print "Must check either concordance or consistency."
-            raise Exception
-            sys.exit(1)
-
-
-        # Determine lovd consistency/concordance
-
-        if lovd_positive is True and lovd_negative is True:
-            lovd_consistency_or_concordance = False
-        elif lovd_positive is True and lovd_negative is False:
-            lovd_consistency_or_concordance = True
-        elif lovd_negative is True and lovd_positive is False:
-            lovd_consistency_or_concordance = True
-
-        
-        # Determine combined consistency/concordance
-
-        if clinvar_positive is True and lovd_negative is True:
-            clinvar_and_lovd_consistency_or_concordance = False
-        elif clinvar_negative is True and lovd_positive is True:
-            clinvar_and_lovd_consistency_or_concordance = False
-        elif clinvar_positive is True and clinvar_negative is True:
-            clinvar_and_lovd_consistency_or_concordance = False
-        elif lovd_positive is True and lovd_negative is True:
-            clinvar_and_lovd_consistency_or_concordance = False
-        elif clinvar_positive is True and lovd_positive is True:
-            clinvar_and_lovd_consistency_or_concordance = True
-        elif clinvar_negative is True and lovd_negative is True:
-            clinvar_and_lovd_consistency_or_concordance = True
-        else:
-            vals = [clinvar_positive, clinvar_negative, lovd_positive, lovd_negative]
-            num_true = 0
-            for val in vals:
-                if val is True:
-                    num_true += 1
-            if num_true <= 1:
-                clinvar_and_lovd_consistency_or_concordance = True
+        clinvar_consistency_or_concordance = self._determine_clinvar_or_lovd_consistency_or_concordance(clinvar_positive, clinvar_negative)
+        lovd_consistency_or_concordance = self._determine_clinvar_or_lovd_consistency_or_concordance(lovd_positive, lovd_negative)
+        clinvar_and_lovd_consistency_or_concordance = self._determine_clinvar_and_lovd_consistency_or_concordance(clinvar_positive, clinvar_negative, lovd_positive, lovd_negative)
 
         return clinvar_consistency_or_concordance, lovd_consistency_or_concordance, clinvar_and_lovd_consistency_or_concordance
 
@@ -165,8 +138,8 @@ class Command(BaseCommand):
                     output_row = self._append_value(output_row, 'Submitters_LOVD', report.Submitters_LOVD)
                     output_row = self._append_value(output_row, 'Variant_effect_LOVD', significance)
 
-            clinvar_actionable, lovd_consistency, clinvar_and_lovd_consistency = self._determine_consistency(output_row)
-            output_row['Actionable_ClinVar'] = clinvar_actionable
+            clinvar_consistency, lovd_consistency, clinvar_and_lovd_consistency = self._determine_consistency(output_row)
+            output_row['Consistency_ClinVar'] = clinvar_consistency
             output_row['Consistency_LOVD'] = lovd_consistency
             output_row["Consistency_LOVD_And_ClinVar"] = clinvar_and_lovd_consistency
 
@@ -182,11 +155,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         meta = {
-            'file': '/tmp/discordance.tsv',
+            'file': '/Users/zfisch/UCSC/data/discordance/discordance.tsv',
             'variant_fields': ['Genomic_Coordinate_hg38', 'HGVS_cDNA',
                        'Allele_frequency_ExAC', 'Allele_frequency_1000_Genomes'],
             'fields_of_interest': ['Genomic_Coordinate_hg38', 'HGVS_cDNA', 'Submitter_ClinVar',
-                       'Clinical_Significance_ClinVar', 'Actionable_ClinVar',
+                       'Clinical_Significance_ClinVar', 'Consistency_ClinVar'
                        'Discordance_ClinVar', 'Submitters_LOVD', 'Variant_effect_LOVD',
                        'Consistency_LOVD', 'Discordance_LOVD', 'Consistency_LOVD_And_ClinVar',
                        'Discordance_LOVD_And_ClinVar', 'Allele_frequency_ExAC',
@@ -196,13 +169,12 @@ class Command(BaseCommand):
         f = open(meta['file'], 'w+')
         writer = csv.writer(f, encoding='utf-8', delimiter='\t')
         writer.writerow( meta['fields_of_interest'] )
+        print 'Building discordance.tsv -- this takes a while.'
         for obj in CurrentVariant.objects.all().exclude(Change_Type__name='deleted'):
             obj_data = self._collect_data_for_variant(obj, meta)
             if not obj_data:
                 continue
             else:
-                print obj_data
-                print '\n'
                 row = []
                 for field in meta['fields_of_interest']:
                     row.append(obj_data[field])
