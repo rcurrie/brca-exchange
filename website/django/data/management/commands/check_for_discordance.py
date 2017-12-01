@@ -9,7 +9,6 @@ from django.db import connection
 from data.models import CurrentVariant, Report, Variant
 from django.db import transaction
 import unicodecsv as csv
-import pdb
 
 
 EMPTY = '-'
@@ -65,7 +64,7 @@ class Command(BaseCommand):
     def _determine_clinvar_and_lovd_consistency_or_concordance(self, clinvar_positive, clinvar_negative, lovd_positive, lovd_negative):
         if clinvar_positive is True and lovd_positive is True and clinvar_negative is False and lovd_negative is False:
             return True
-        elif clinvar_negative is True and lovd_negative is True and clinvar_positive is False and lovd_negative is False:
+        elif clinvar_negative is True and lovd_negative is True and clinvar_positive is False and lovd_positive is False:
             return True
         else:
             if [clinvar_positive, clinvar_negative, lovd_positive, lovd_negative].count(True) <= 1:
@@ -159,7 +158,7 @@ class Command(BaseCommand):
             'variant_fields': ['Genomic_Coordinate_hg38', 'HGVS_cDNA',
                        'Allele_frequency_ExAC', 'Allele_frequency_1000_Genomes'],
             'fields_of_interest': ['Genomic_Coordinate_hg38', 'HGVS_cDNA', 'Submitter_ClinVar',
-                       'Clinical_Significance_ClinVar', 'Consistency_ClinVar'
+                       'Clinical_Significance_ClinVar', 'Consistency_ClinVar',
                        'Discordance_ClinVar', 'Submitters_LOVD', 'Variant_effect_LOVD',
                        'Consistency_LOVD', 'Discordance_LOVD', 'Consistency_LOVD_And_ClinVar',
                        'Discordance_LOVD_And_ClinVar', 'Allele_frequency_ExAC',
