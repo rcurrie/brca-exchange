@@ -228,6 +228,10 @@ const researchModeGroups = [
         {title: 'Literature Reference', prop: 'Literature_source_exLOVD', core: true}
     ]},
 
+    {groupTitle: 'In Silico Prediction', internalGroupName: 'InSilicoPrediction', inSilicoPred: true,
+        innerCols: []
+    },
+
     {groupTitle: 'CRAVAT - MuPIT 3D Protein View', internalGroupName: 'Mupit Structure', innerCols: [
         {title: 'Mupit Structure', prop: 'Mupit_Structure', replace: mupitStructure, tableKey: false, dummy: true}
     ]},
