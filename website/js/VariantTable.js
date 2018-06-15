@@ -228,7 +228,7 @@ const researchModeGroups = [
         {title: 'Literature Reference', prop: 'Literature_source_exLOVD', core: true}
     ]},
 
-    {groupTitle: 'In Silico Prediction', internalGroupName: 'InSilicoPrediction', inSilicoPred: true,
+    {groupTitle: 'In Silico Prediction (prior to considering other evidence)', internalGroupName: 'InSilicoPrediction', inSilicoPred: true,
         innerCols: []
     },
 
